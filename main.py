@@ -69,18 +69,26 @@ def accept_connections(s):
 
 def send_data(c):
     while True:
-        c.send(json.dumps(pose).encode('utf-8'))
+        c.send(json.dumps(face_data).encode('utf-8'))
         time.sleep(0.1)
 
 
 if __name__ == '__main__':
     load_dotenv()
 
-    pose = {
-        "roll": 0,
-        "pitch": 0,
-        "yaw": 0
+    face_data = {
+        "pose": {
+            "roll": 0,
+            "pitch": 0,
+            "yaw": 0
+        },
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
     }
+
 
     s = socket.socket()
     host = socket.gethostname()
@@ -129,9 +137,12 @@ if __name__ == '__main__':
                             left = landmark
                         if i == 454:
                             right = landmark
-                    pose["roll"] = np.arctan2(left.y - right.y, left.x - right.x)
-                    pose["pitch"] = np.arctan2(top.z - bottom.z, top.y - bottom.y)
-                    pose["yaw"] = np.arctan2(left.z - right.z, left.x - right.x)
+                    face_data["pose"]["roll"] = np.arctan2(left.y - right.y, left.x - right.x)
+                    face_data["pose"]["pitch"] = np.arctan2(top.z - bottom.z, top.y - bottom.y)
+                    face_data["pose"]["yaw"] = np.arctan2(left.z - right.z, left.x - right.x)
+                    face_data["position"]["x"] = np.mean((left.x, right.x))
+                    face_data["position"]["y"] = np.mean((left.y, right.y))
+                    face_data["position"]["z"] = np.mean((left.z, right.z))
 
             debug(image, results_face)
 
