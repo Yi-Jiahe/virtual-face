@@ -69,9 +69,8 @@ def accept_connections(s):
 
 def send_data(c):
     while True:
-        c.send(json.dumps(face_data).encode('utf-8'))
-        time.sleep(0.1)
-
+        if c.recv(1024):
+            c.send(json.dumps(face_data).encode('utf-8'))
 
 if __name__ == '__main__':
     load_dotenv()
@@ -89,8 +88,7 @@ if __name__ == '__main__':
         }
     }
 
-
-    s = socket.socket()
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = socket.gethostname()
     port = int(os.getenv("SOCKET_PORT"))
     s.bind((host, port))
