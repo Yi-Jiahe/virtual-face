@@ -1,40 +1,64 @@
+# IMPORTING LIBRARIES
 from cv2 import cv2
-import dlib
-import numpy as np
+import mediapipe as mp
 
-if __name__ == '__main__':
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+# INITIALIZING OBJECTS
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+mp_face_mesh = mp.solutions.face_mesh
+mp_hands = mp.solutions.hands
 
+drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
+cap = cv2.VideoCapture(0)
+
+# DETECT THE FACE LANDMARKS
+with mp_face_mesh.FaceMesh(refine_landmarks=True, min_detection_confidence=0.8, min_tracking_confidence=0.8) as face_mesh, \
+        mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.8) as hands:
     while True:
-        # Capture the image from the webcam
-        ret, image = cap.read()
-        # Convert the image color to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # Detect the face
-        rects = detector(gray, 1)
-        # Detect landmarks for each face
-        for rect in rects:
-            # Get the landmark points
-            shape = predictor(gray, rect)
-            # Convert it to the NumPy Array
-            shape_np = np.zeros((68, 2), dtype="int")
-            for i in range(0, 68):
-                shape_np[i] = (shape.part(i).x, shape.part(i).y)
-            shape = shape_np
+        success, image = cap.read()
 
-            # Display the landmarks
-            for i, (x, y) in enumerate(shape):
-                # Draw the circle to mark the keypoint
-                cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
+        # Flip the image horizontally and convert the color space from BGR to RGB
+        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+
+        # To improve performance
+        image.flags.writeable = False
+
+        # Detect the face landmarks
+        results_face = face_mesh.process(image)
+        results_hands = hands.process(image)
+
+        # To improve performance
+        image.flags.writeable = True
+
+        # Convert back to the BGR color space
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        # Draw the face mesh annotations on the image.
+        if results_face.multi_face_landmarks:
+            for face_landmarks in results_face.multi_face_landmarks:
+                mp_drawing.draw_landmarks(
+                    image=image,
+                    landmark_list=face_landmarks,
+                    connections=mp_face_mesh.FACEMESH_TESSELATION,
+                    landmark_drawing_spec=None,
+                    connection_drawing_spec=mp_drawing_styles
+                        .get_default_face_mesh_tesselation_style())
+
+        if results_hands.multi_hand_landmarks:
+            for hand_landmarks in results_hands.multi_hand_landmarks:
+                mp_drawing.draw_landmarks(
+                    image,
+                    hand_landmarks,
+                    mp_hands.HAND_CONNECTIONS,
+                    mp_drawing_styles.get_default_hand_landmarks_style(),
+                    mp_drawing_styles.get_default_hand_connections_style())
 
         # Display the image
-        cv2.imshow('Landmark Detection', image)
+        cv2.imshow('MediaPipe FaceMesh and Hands', image)
 
-        # Press the escape button to terminate the code
-        if cv2.waitKey(10) == 27:
+        # Terminate the process
+        if cv2.waitKey(5) & 0xFF == 27:
             break
 
-    cap.release()
-    cv2.destroyAllWindows()
+cap.release()
+cv2.destroyAllWindows()
