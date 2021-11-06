@@ -63,14 +63,15 @@ def accept_connections(s):
     threads = []
     while True:
         c, addr = s.accept()  # Establish connection with client.
-        print("Got connection from", addr)
-        threads.append(threading.Thread(target=send_data, args=(c,)).start())
+        print(f"Got connection from {addr[0]}:{addr[1]}")
+        threads.append(threading.Thread(target=send_data, args=(c, addr)).start())
 
 
-def send_data(c):
+def send_data(c, addr):
     while True:
         if c.recv(1024):
             c.send(json.dumps(face_data).encode('utf-8'))
+            print(f"Sent to {addr[0]}:{addr[1]}")
 
 if __name__ == '__main__':
     load_dotenv()
