@@ -16,4 +16,4 @@ respectively.
 The estimations and abstractions extracted from the landmarks are made available to other programs by opening a socket 
 for clients to connect to and request the data from.
 
-A companion project can be found at []() which makes use of the outputs from this program to control a 3D object in Unity. 
+A [companion project](https://github.com/Yi-Jiahe/cv-controller) makes use of the outputs from this program to control a 3D object in Unity. 
