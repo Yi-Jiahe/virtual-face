@@ -5,7 +5,6 @@ import os
 
 from cv2 import cv2
 import mediapipe as mp
-import numpy as np
 from dotenv import load_dotenv
 
 from vface.drawing_utils import draw_face, MediaPipeDrawer
@@ -25,31 +24,46 @@ face_data = {
     }
 }
 
-def accept_connections(s):
-    threads = []
+
+def accept_connections(s, exit_event):
     while True:
-        c, addr = s.accept()  # Establish connection with client.
-        print(f"Got connection from {addr[0]}:{addr[1]}")
-        threads.append(threading.Thread(target=send_data, args=(c, addr)).start())
+        try:
+            conn, addr = s.accept()  # Establish connection with client.
+            print(f"Got connection from {addr[0]}:{addr[1]}")
+            threading.Thread(target=send_data, args=(conn, addr)).start()
+        except BlockingIOError:
+            pass
+        if exit_event.is_set():
+            break
 
 
-def send_data(c, addr):
-    while True:
-        if c.recv(1024):
-            c.send(json.dumps(face_data).encode('utf-8'))
-            print(f"Sent to {addr[0]}:{addr[1]}")
+def send_data(conn, addr):
+    with conn:
+        while True:
+            try:
+                data = conn.recv(1024)
+                if data:
+                    conn.send(json.dumps(face_data).encode('utf-8'))
+                    print(f"Sent to {addr[0]}:{addr[1]}")
+                else:
+                    print(f"Connection closed by {addr[0]}:{addr[1]}")
+                    break
+            except BlockingIOError:
+                pass
 
 
 if __name__ == '__main__':
     load_dotenv()
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host = socket.gethostname()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host = "127.0.0.1"
     port = int(os.getenv("SOCKET_PORT"))
-    s.bind((host, port))
-    s.listen()
+    sock.bind((host, port))
+    sock.listen()
+    sock.setblocking(False)
 
-    socket_thread = threading.Thread(target=accept_connections, args=(s,))
+    exit_event = threading.Event()
+    socket_thread = threading.Thread(target=accept_connections, args=(sock, exit_event))
     socket_thread.start()
 
     drawer = MediaPipeDrawer()
@@ -91,7 +105,8 @@ if __name__ == '__main__':
             if cv2.waitKey(5) & 0xFF == 27:
                 break
 
-    s.close()
+    exit_event.set()
+    sock.close()
 
     cap.release()
     cv2.destroyAllWindows()
