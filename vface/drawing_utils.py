@@ -68,19 +68,13 @@ class MediaPipeDrawer:
                 connection_drawing_spec=mp.solutions.drawing_utils.DrawingSpec(color=(245, 66, 230), thickness=2,
                                                                                circle_radius=2))
 
-        # Display the image
-        cv2.imshow('MediaPipe FaceMesh and Hands', image)
-
 
 def draw_face(image, face_landmarks):
     blank_image = np.multiply(np.ones(image.shape), (0, 0, 0))
-    draw_landmarks(image, face_landmarks)
-
-    # Display the image
-    cv2.imshow('Silhouettes and Iris', image)
+    draw_face_landmarks(image, face_landmarks)
 
 
-def draw_landmarks(image, face_landmarks):
+def draw_face_landmarks(image, face_landmarks):
     image_rows, image_cols, _ = image.shape
     for i, landmark in enumerate(face_landmarks.landmark):
         x_px = int(landmark.x * image_cols)

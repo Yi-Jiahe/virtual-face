@@ -1,14 +1,17 @@
+import argparse
+import signal
 import socket
 import threading
 import json
-import os
 
 from cv2 import cv2
 import mediapipe as mp
-from dotenv import load_dotenv
 
 from vface.drawing_utils import draw_face, MediaPipeDrawer
 from vface.face import extract_pose_data
+
+
+killed = False
 
 
 face_data = {
@@ -25,8 +28,14 @@ face_data = {
 }
 
 
+def set_killed(signum, frame):
+    print("Killing program")
+    global killed
+    killed = True
+
+
 def accept_connections(s, exit_event):
-    while True:
+    while not killed:
         try:
             conn, addr = s.accept()  # Establish connection with client.
             print(f"Got connection from {addr[0]}:{addr[1]}")
@@ -39,7 +48,7 @@ def accept_connections(s, exit_event):
 
 def send_data(conn, addr):
     with conn:
-        while True:
+        while not killed:
             try:
                 data = conn.recv(1024)
                 if data:
@@ -53,12 +62,22 @@ def send_data(conn, addr):
 
 
 if __name__ == '__main__':
-    load_dotenv()
+    parser = argparse.ArgumentParser(description='Run detection and server.')
+    parser.add_argument('-p', '--port', dest='port', type=int,
+                        default=12345,
+                        help='Port to listen on')
+    parser.add_argument("-d", "--debug", help="show debug window",
+                        action="store_true")
+    args = parser.parse_args()
+
+    signal.signal(signal.SIGINT, set_killed)
+    signal.signal(signal.SIGTERM, set_killed)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = "127.0.0.1"
-    port = int(os.getenv("SOCKET_PORT"))
+    port = args.port
     sock.bind((host, port))
+    print(f"listening at {host}:{port}")
     sock.listen()
     sock.setblocking(False)
 
@@ -71,11 +90,8 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(0)
 
     # DETECT THE FACE LANDMARKS
-    with mp.solutions.face_mesh.FaceMesh(refine_landmarks=True, min_detection_confidence=0.8,
-                               min_tracking_confidence=0.8) as face_mesh, \
-            mp.solutions.hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.8) as hands, \
-            mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        while True:
+    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+        while not killed:
             success, image = cap.read()
 
             # Flip the image horizontally and convert the color space from BGR to RGB
@@ -85,25 +101,29 @@ if __name__ == '__main__':
             image.flags.writeable = False
 
             # Detect the landmarks
-            results_face = face_mesh.process(image)
-            results_hands = hands.process(image)
-            results_holistic = holistic.process(image)
+            results = holistic.process(image)
 
-            # Prepare image for drawing on and displaying
-            image.flags.writeable = True
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-            # drawer.debug_out_of_the_box(image, results_face, results_hands)
-            drawer.debug_out_of_the_box(image.copy(), results_holistic=results_holistic)
-
-            if results_face.multi_face_landmarks:
-                face_landmarks = results_face.multi_face_landmarks[0]
-                draw_face(image.copy(), face_landmarks)
+            if results.face_landmarks:
+                face_landmarks = results.face_landmarks
                 face_data = extract_pose_data(face_landmarks)
 
-            # Terminate the process
-            if cv2.waitKey(5) & 0xFF == 27:
-                break
+            if args.debug:
+                # Prepare image for drawing on and displaying
+                image.flags.writeable = True
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+                drawn_image = image.copy()
+                drawer.debug_out_of_the_box(drawn_image, results_holistic=results)
+
+                if results.face_landmarks:
+                    face_landmarks = results.face_landmarks
+                    draw_face(drawn_image, face_landmarks)
+
+                cv2.imshow("debug", drawn_image)
+
+                # Terminate the process
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
 
     exit_event.set()
     sock.close()
