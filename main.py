@@ -59,24 +59,33 @@ if __name__ == '__main__':
     # DETECT THE FACE LANDMARKS
     with mp.solutions.face_mesh.FaceMesh(refine_landmarks=True, min_detection_confidence=0.8,
                                min_tracking_confidence=0.8) as face_mesh, \
-            mp.solutions.hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.8) as hands:
+            mp.solutions.hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.8) as hands, \
+            mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         while True:
             success, image = cap.read()
 
             # Flip the image horizontally and convert the color space from BGR to RGB
             image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
 
-            # To improve performance
+            # To improve performance, mark image as not writeable before processing to pass by reference
             image.flags.writeable = False
 
             # Detect the landmarks
             results_face = face_mesh.process(image)
             results_hands = hands.process(image)
+            results_holistic = holistic.process(image)
 
-            draw_face(image, results_face)
-            drawer.debug_out_of_the_box(image, results_face, results_hands)
+            # Prepare image for drawing on and displaying
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-            face_data = extract_pose_data(results_face)
+            # drawer.debug_out_of_the_box(image, results_face, results_hands)
+            drawer.debug_out_of_the_box(image.copy(), results_holistic=results_holistic)
+
+            if results_face.multi_face_landmarks:
+                face_landmarks = results_face.multi_face_landmarks[0]
+                draw_face(image.copy(), face_landmarks)
+                face_data = extract_pose_data(face_landmarks)
 
             # Terminate the process
             if cv2.waitKey(5) & 0xFF == 27:

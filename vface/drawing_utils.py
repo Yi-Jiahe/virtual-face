@@ -11,18 +11,12 @@ class MediaPipeDrawer:
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.drawing_spec = self.mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-    def debug_out_of_the_box(self, image, results_face=None, results_hands=None):
-        # To improve performance
-        image.flags.writeable = True
-
-        # Convert back to the BGR color space
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
+    def debug_out_of_the_box(self, image, results_face=None, results_hands=None, results_holistic=None):
         if results_face:
             # Draw the face mesh annotations on the image.
             if results_face.multi_face_landmarks:
                 for face_landmarks in results_face.multi_face_landmarks:
-                    self.mp_drawing.draw_landmarks(
+                    mp.solutions.drawing_utils.draw_landmarks(
                         image=image,
                         landmark_list=face_landmarks,
                         connections=mp.solutions.face_mesh.FACEMESH_TESSELATION,
@@ -33,35 +27,57 @@ class MediaPipeDrawer:
         if results_hands:
             if results_hands.multi_hand_landmarks:
                 for hand_landmarks in results_hands.multi_hand_landmarks:
-                    self.mp_drawing.draw_landmarks(
-                        image,
-                        hand_landmarks,
-                        mp.solutions.hands.HAND_CONNECTIONS,
-                        self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                        self.mp_drawing_styles.get_default_hand_connections_style())
+                    mp.solutions.drawing_utils.draw_landmarks(
+                        image=image,
+                        landmark_list=hand_landmarks,
+                        connections=mp.solutions.hands.HAND_CONNECTIONS,
+                        landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                        connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+
+        if results_holistic:
+            mp.solutions.drawing_utils.draw_landmarks(
+                image=image,
+                landmark_list=results_holistic.face_landmarks,
+                connections=mp.solutions.holistic.FACEMESH_TESSELATION,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=self.mp_drawing_styles
+                    .get_default_face_mesh_tesselation_style())
+            # 2. Right hand
+            mp.solutions.drawing_utils.draw_landmarks(
+                image=image,
+                landmark_list=results_holistic.right_hand_landmarks,
+                connections=mp.solutions.holistic.HAND_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=4),
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+
+            # 3. Left Hand
+            mp.solutions.drawing_utils.draw_landmarks(
+                image=image,
+                landmark_list=results_holistic.left_hand_landmarks,
+                connections=mp.solutions.holistic.HAND_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+
+            # 4. Pose Detections
+            mp.solutions.drawing_utils.draw_landmarks(
+                image=image,
+                landmark_list=results_holistic.pose_landmarks,
+                connections=mp.solutions.holistic.POSE_CONNECTIONS,
+                landmark_drawing_spec=mp.solutions.drawing_utils.DrawingSpec(color=(245, 117, 66), thickness=2,
+                                                                             circle_radius=2),
+                connection_drawing_spec=mp.solutions.drawing_utils.DrawingSpec(color=(245, 66, 230), thickness=2,
+                                                                               circle_radius=2))
 
         # Display the image
         cv2.imshow('MediaPipe FaceMesh and Hands', image)
 
-        image.flags.writeable = False
 
-
-def draw_face(image, results_face):
-    # To improve performance
-    image.flags.writeable = True
-
-    # Convert back to the BGR color space
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
+def draw_face(image, face_landmarks):
     blank_image = np.multiply(np.ones(image.shape), (0, 0, 0))
-    if results_face.multi_face_landmarks:
-        for face_landmarks in results_face.multi_face_landmarks:
-            draw_landmarks(image, face_landmarks)
+    draw_landmarks(image, face_landmarks)
 
     # Display the image
     cv2.imshow('Silhouettes and Iris', image)
-
-    image.flags.writeable = False
 
 
 def draw_landmarks(image, face_landmarks):
