@@ -51,12 +51,13 @@ if __name__ == '__main__':
     if debug:
         drawer = MediaPipeDrawer()
 
+    estimator = ParameterEstimator()
+
     loop = 0
 
     cap = cv2.VideoCapture(0)
     with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5,
-                                        refine_face_landmarks=True) as holistic, \
-            ParameterEstimator() as estimator:
+                                        refine_face_landmarks=True) as holistic:
         while not killed:
             start_time = time.time()
 
