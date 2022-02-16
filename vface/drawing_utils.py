@@ -130,11 +130,20 @@ def draw_eye(image, i, image_point):
 
 def draw_irises(image, i, image_point):
     color = None
+    text = None
     if i in [*MeshPoints.leftEyeIris,
              *MeshPoints.rightEyeIris]:
         color = (0, 255, 0)
+        if i == 468:
+            text = f"{i}"
+        if i == 473:
+            text = f"{i}"
     if color is not None:
         cv2.circle(image, image_point, radius=2, color=color, thickness=-1)
+        if text is not None:
+            cv2.putText(image, text, image_point, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.3, color=color,
+                        thickness=1,
+                        lineType=cv2.LINE_AA)
 
 
 def draw_mouth(image, i, image_point):

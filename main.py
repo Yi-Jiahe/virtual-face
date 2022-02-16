@@ -11,8 +11,8 @@ from client import Client
 from vface.drawing_utils import draw_face, MediaPipeDrawer
 from vface.face import extract_pose_data
 
-
 killed = False
+
 
 def send_message(client, args):
     msg = '%.4f ' * len(args) % args
@@ -54,7 +54,8 @@ if __name__ == '__main__':
 
     cap = cv2.VideoCapture(0)
 
-    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5, refine_face_landmarks=True) as holistic:
+    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5,
+                                        refine_face_landmarks=True) as holistic:
         while not killed:
             success, image = cap.read()
 
@@ -77,12 +78,13 @@ if __name__ == '__main__':
 
                 if not standalone:
                     try:
-                        x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right, \
-                            mar, mouth_distance = 0, 0, 0, 0, 0, 0
-                        send_message(client, (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"],
-                                              face_data["eye_aspect_ratio"]["left"], face_data["eye_aspect_ratio"]["right"],
-                                              x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right,
-                                              face_data["mouth_aspect_ratio"], mouth_distance))
+                        mouth_distance =0
+                        send_message(client,
+                                     (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"],
+                                      face_data["eye_aspect_ratio"]["left"], face_data["eye_aspect_ratio"]["right"],
+                                      face_data["iris_ratio"]["x"], face_data["iris_ratio"]["y"],
+                                      face_data["iris_ratio"]["x"], face_data["iris_ratio"]["y"],
+                                      face_data["mouth_aspect_ratio"], mouth_distance))
                     except OSError:
                         # Socket is not connected
                         # Attempt to reconnect
@@ -102,7 +104,6 @@ if __name__ == '__main__':
                     draw_face(image, face_landmarks)
 
                 cv2.imshow("debug", image)
-
 
                 # Terminate the process
                 if cv2.waitKey(5) & 0xFF == 27:
