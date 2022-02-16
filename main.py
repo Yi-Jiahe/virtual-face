@@ -82,7 +82,7 @@ if __name__ == '__main__':
                         send_message(client, (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"],
                                               face_data["eye_aspect_ratio"]["left"], face_data["eye_aspect_ratio"]["right"],
                                               x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right,
-                                              mar, mouth_distance))
+                                              face_data["mouth_aspect_ratio"], mouth_distance))
                     except OSError:
                         # Socket is not connected
                         # Attempt to reconnect

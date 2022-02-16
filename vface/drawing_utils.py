@@ -139,14 +139,35 @@ def draw_irises(image, i, image_point):
 
 def draw_mouth(image, i, image_point):
     color = None
+    text = None
     if i in [*MeshPoints.lipsLowerInner,
              *MeshPoints.lipsUpperInner]:
         color = (0, 0, 255)
+        if i == 78:
+            text = f"{i}: p1"
+        if i == 80:
+            text = f"{i}: p2"
+        if i == 13:
+            text = f"{i}: p3"
+        if i == 311:
+            text = f"{i}: p4"
+        if i == 308:
+            text = f"{i}: p5"
+        if i == 402:
+            text = f"{i}: p6"
+        if i == 14:
+            text = f"{i}: p7"
+        if i == 88:
+            text = f"{i}: p8"
     if i in [*MeshPoints.lipsLowerOuter,
              *MeshPoints.lipsUpperOuter]:
         color = (127, 127, 255)
     if color is not None:
         cv2.circle(image, image_point, radius=2, color=color, thickness=-1)
+        if text is not None:
+            cv2.putText(image, text, image_point, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.3, color=color,
+                        thickness=1,
+                        lineType=cv2.LINE_AA)
 
 
 def draw_silhouette(image, i, image_point):
@@ -155,13 +176,13 @@ def draw_silhouette(image, i, image_point):
     if i in [*MeshPoints.silhouette]:
         color = (0, 0, 255)
         if i == 10:
-            text = "top"
+            text = f"{i}: top"
         if i == 152:
-            text = "bottom"
+            text = f"{i}: bottom"
         if i == 234:
-            text = "left"
+            text = f"{i}: left"
         if i == 454:
-            text = "right"
+            text = f"{i}: right"
     if color is not None:
         cv2.circle(image, image_point, radius=2, color=color, thickness=-1)
         if text is not None:
