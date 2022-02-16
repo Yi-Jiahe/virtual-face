@@ -34,58 +34,44 @@ def set_killed(signum, frame):
     killed = True
 
 
-def accept_connections(s, exit_event):
-    while not killed:
+def connect_socket(sock, addr):
+    connected = False
+    while not connected:
         try:
-            conn, addr = s.accept()  # Establish connection with client.
-            print(f"Got connection from {addr[0]}:{addr[1]}")
-            threading.Thread(target=send_data, args=(conn, addr)).start()
-        except BlockingIOError:
-            pass
-        if exit_event.is_set():
-            break
-
-
-def send_data(conn, addr):
-    with conn:
-        while not killed:
-            try:
-                data = conn.recv(1024)
-                if data:
-                    conn.send(json.dumps(face_data).encode('utf-8'))
-                    print(f"Sent to {addr[0]}:{addr[1]}")
-                else:
-                    print(f"Connection closed by {addr[0]}:{addr[1]}")
-                    break
-            except BlockingIOError:
-                pass
+            sock.connect(addr)
+            print(f"Connected to {addr[0], addr[1]}")
+        except ConnectionRefusedError:
+            print(f"Failed to connect to {addr[0], addr[1]}")
+            print("Retrying...")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run detection and server.')
+    parser.add_argument('--host', dest='host',
+                        default="127.0.0.1",
+                        help='Server host to listen on')
     parser.add_argument('-p', '--port', dest='port', type=int,
                         default=12345,
                         help='Port to listen on')
     parser.add_argument("-d", "--debug", help="show debug window",
                         action="store_true")
+    parser.add_argument("-s", "--standalone", help="run in standalone mode",
+                        action="store_true")
     args = parser.parse_args()
+
+    debug = args.debug
+    standalone = args.standalone
 
     signal.signal(signal.SIGINT, set_killed)
     signal.signal(signal.SIGTERM, set_killed)
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host = "127.0.0.1"
-    port = args.port
-    sock.bind((host, port))
-    print(f"listening at {host}:{port}")
-    sock.listen()
-    sock.setblocking(False)
+    if not standalone:
+        address = (args.host, args.port)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connect_socket(sock, address)
 
-    exit_event = threading.Event()
-    socket_thread = threading.Thread(target=accept_connections, args=(sock, exit_event))
-    socket_thread.start()
-
-    drawer = MediaPipeDrawer()
+    if debug:
+        drawer = MediaPipeDrawer()
 
     cap = cv2.VideoCapture(0)
 
@@ -107,7 +93,19 @@ if __name__ == '__main__':
                 face_landmarks = results.face_landmarks
                 face_data = extract_pose_data(face_landmarks)
 
-            if args.debug:
+            if not standalone:
+                try:
+                    msg = '%.4f %.4f %.4f %.4f %.4f %.4f' % \
+                          (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"], 0, 0, 0)
+                    sock.send(bytes(msg, "utf-8"))
+                except OSError:
+                    # Socket is not connected
+                    # Attempt to reconnect
+                    print("Failed to send data")
+                    print("Attempting to reconnect")
+                    connect_socket(sock, address)
+
+            if debug:
                 # Prepare image for drawing on and displaying
                 image.flags.writeable = True
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -121,12 +119,15 @@ if __name__ == '__main__':
 
                 cv2.imshow("debug", drawn_image)
 
+                print(json.dumps(face_data))
+
                 # Terminate the process
                 if cv2.waitKey(5) & 0xFF == 27:
                     break
 
-    exit_event.set()
-    sock.close()
+    if not standalone:
+        sock.close()
 
     cap.release()
-    cv2.destroyAllWindows()
+    if debug:
+        cv2.destroyAllWindows()
