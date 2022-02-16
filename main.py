@@ -72,6 +72,9 @@ if __name__ == '__main__':
                 face_landmarks = results.face_landmarks
                 face_data = extract_pose_data(face_landmarks)
 
+                if debug:
+                    print(json.dumps(face_data))
+
                 if not standalone:
                     try:
                         x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right, \
@@ -100,7 +103,6 @@ if __name__ == '__main__':
 
                 cv2.imshow("debug", image)
 
-                print(json.dumps(face_data))
 
                 # Terminate the process
                 if cv2.waitKey(5) & 0xFF == 27:
