@@ -2,9 +2,6 @@ import numpy as np
 from filterpy.kalman import KalmanFilter
 
 
-
-
-
 class ParameterEstimator:
     n_parameters = 11
 
@@ -150,9 +147,9 @@ def determine_face_pose(top, bottom, left, right):
     """
     Returns the pose of the face based on landmarks on the silhouette of the face
     """
-    roll = np.rad2deg(np.arctan2(left.y - right.y, right.x - left.x))
-    pitch = np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y))
-    yaw = np.rad2deg(np.arctan2(left.z - right.z, right.x - left.x))
+    roll = np.clip(np.rad2deg(np.arctan2(left.y - right.y, right.x - left.x)), -50, 50)
+    pitch = np.clip(np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y)), -50, 50)
+    yaw = np.clip(np.rad2deg(np.arctan2(left.z - right.z, right.x - left.x)), -50, 50)
     return roll, pitch, yaw
 
 
@@ -182,7 +179,7 @@ def eye_aspect_ratio(outer, inner, top, bottom):
     The EAR is a ratio of the height to the length of the eye and is a measure of how open the eye is
     """
     SCALING_FACTOR = 1.5
-    return np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR
+    return np.clip(np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR, 0, 1)
 
 
 def iris_ratio(outer, inner, top, bottom, iris):
@@ -193,8 +190,8 @@ def iris_ratio(outer, inner, top, bottom, iris):
     x: 0 => outer, 1 => inner
     y: 0 => bottom, 1 => top
     """
-    ratio_x = proj(iris-outer, inner-outer) / np.linalg.norm(inner-outer)
-    ratio_y = proj(iris-bottom, top-bottom) / np.linalg.norm(top-bottom)
+    ratio_x = np.clip(proj(iris-outer, inner-outer) / np.linalg.norm(inner-outer), 0, 1)
+    ratio_y = np.clip(proj(iris-bottom, top-bottom) / np.linalg.norm(top-bottom), 0, 1)
     return ratio_x, ratio_y
 
 
@@ -212,5 +209,6 @@ def mouth_aspect_ratio(mouth_landmarks):
     The MAR is a measure of how open the mouth is
     """
     p1, p2, p3, p4, p5, p6, p7, p8 = map(lambda p: np.array([p.x, p.y, p.z]), mouth_landmarks)
-    return (np.linalg.norm(p2 - p8) + np.linalg.norm(p3 - p7) + np.linalg.norm(p4 - p6)) / (2 * np.linalg.norm(p1 - p5))
-
+    return np.clip(
+        (np.linalg.norm(p2 - p8) + np.linalg.norm(p3 - p7) + np.linalg.norm(p4 - p6)) / (2 * np.linalg.norm(p1 - p5)),
+        0, 2)
