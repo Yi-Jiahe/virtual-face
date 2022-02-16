@@ -18,7 +18,7 @@ class Client:
                 print("Retrying...")
 
     def send(self, b):
-        self.sock.send(b)
+        self.sock.sendall(b)
 
     def close_socket(self):
         self.sock.close()

@@ -14,19 +14,9 @@ from vface.face import extract_pose_data
 
 killed = False
 
-
-face_data = {
-    "pose": {
-        "roll": 0,
-        "pitch": 0,
-        "yaw": 0
-    },
-    "position": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-    }
-}
+def send_message(client, args):
+    msg = '%.4f ' * len(args) % args
+    client.send(bytes(msg, "utf-8"))
 
 
 def set_killed(signum, frame):
@@ -64,12 +54,12 @@ if __name__ == '__main__':
 
     cap = cv2.VideoCapture(0)
 
-    # DETECT THE FACE LANDMARKS
-    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5, refine_face_landmarks=True) as holistic:
         while not killed:
             success, image = cap.read()
 
             # Flip the image horizontally and convert the color space from BGR to RGB
+            # image = cv2.resize(cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB), (2540, 1440))
             image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
 
             # To improve performance, mark image as not writeable before processing to pass by reference
@@ -82,31 +72,33 @@ if __name__ == '__main__':
                 face_landmarks = results.face_landmarks
                 face_data = extract_pose_data(face_landmarks)
 
-            if not standalone:
-                try:
-                    msg = '%.4f %.4f %.4f %.4f %.4f %.4f' % \
-                          (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"], 0, 0, 0)
-                    client.send(bytes(msg, "utf-8"))
-                except OSError:
-                    # Socket is not connected
-                    # Attempt to reconnect
-                    print("Failed to send data")
-                    print("Attempting to reconnect")
-                    client.connect()
+                if not standalone:
+                    try:
+                        x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right, \
+                            mar, mouth_distance = 0, 0, 0, 0, 0, 0
+                        send_message(client, (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"],
+                                              face_data["eye_aspect_ratio"]["left"], face_data["eye_aspect_ratio"]["right"],
+                                              x_ratio_left, y_ratio_left, x_ratio_right, y_ratio_right,
+                                              mar, mouth_distance))
+                    except OSError:
+                        # Socket is not connected
+                        # Attempt to reconnect
+                        print("Failed to send data")
+                        print("Attempting to reconnect")
+                        client.connect()
 
             if debug:
                 # Prepare image for drawing on and displaying
                 image.flags.writeable = True
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-                drawn_image = image.copy()
-                drawer.debug_out_of_the_box(drawn_image, results_holistic=results)
+                image = cv2.resize(image, (1920, 1080))
+                # drawer.debug_out_of_the_box(image, results_holistic=results)
 
                 if results.face_landmarks:
                     face_landmarks = results.face_landmarks
-                    draw_face(drawn_image, face_landmarks)
+                    draw_face(image, face_landmarks)
 
-                cv2.imshow("debug", drawn_image)
+                cv2.imshow("debug", image)
 
                 print(json.dumps(face_data))
 
