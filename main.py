@@ -1,15 +1,14 @@
 import argparse
 import signal
-import socket
-import threading
 import json
+import time
 
 from cv2 import cv2
 import mediapipe as mp
 
 from client import Client
 from vface.drawing_utils import draw_face, MediaPipeDrawer
-from vface.face import extract_pose_data
+from vface.face import ParameterEstimator, extract_pose_data
 
 killed = False
 
@@ -52,11 +51,15 @@ if __name__ == '__main__':
     if debug:
         drawer = MediaPipeDrawer()
 
-    cap = cv2.VideoCapture(0)
+    loop = 0
 
+    cap = cv2.VideoCapture(0)
     with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5,
-                                        refine_face_landmarks=True) as holistic:
+                                        refine_face_landmarks=True) as holistic, \
+            ParameterEstimator() as estimator:
         while not killed:
+            start_time = time.time()
+
             success, image = cap.read()
 
             # Flip the image horizontally and convert the color space from BGR to RGB
@@ -71,7 +74,7 @@ if __name__ == '__main__':
 
             if results.face_landmarks:
                 face_landmarks = results.face_landmarks
-                face_data = extract_pose_data(face_landmarks)
+                face_data = estimator.update(face_landmarks)
 
                 if debug:
                     print(json.dumps(face_data))
@@ -108,6 +111,14 @@ if __name__ == '__main__':
                 # Terminate the process
                 if cv2.waitKey(5) & 0xFF == 27:
                     break
+
+            end_time = time.time()
+            # As long as the FPS is stable the prediction of the filter should be fine
+            FPS = 1/(end_time-start_time)
+            loop += 1
+            loop %= 100
+            if loop == 0:
+                print(f"FPS = {FPS}")
 
     if not standalone:
         client.close_socket()

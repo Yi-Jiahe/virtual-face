@@ -1,9 +1,79 @@
 import numpy as np
+from filterpy.kalman import KalmanFilter
+
+
+
 
 
 class ParameterEstimator:
+    n_parameters = 11
+
     def __init__(self):
-        pass
+        self.filter = KalmanFilter(dim_x=self.n_parameters*2, dim_z=self.n_parameters)
+        self.filter.x = np.zeros(self.n_parameters*2)
+        self.filter.F = np.identity(self.n_parameters*2)
+        for i in range(self.n_parameters):
+            self.filter.F[i, i+self.n_parameters] = 1
+        self.filter.H \
+            = np.concatenate((np.identity(self.n_parameters), np.zeros((self.n_parameters, self.n_parameters))), axis=1)
+
+        # TODO: Tune noise
+        # Process noise
+        # Position
+        self.filter.Q[:3, :3] *= 0.1
+        self.filter.Q[self.n_parameters:self.n_parameters+3, self.n_parameters:self.n_parameters+3] *= 0.1
+        # Pose
+        self.filter.Q[3:6, 3:6] *= 0.1
+        self.filter.Q[self.n_parameters+3:self.n_parameters+6, self.n_parameters+3:self.n_parameters+6] *= 0.1
+        # EAR
+        self.filter.Q[6:8, 6:8] *= 0.1
+        self.filter.Q[self.n_parameters+6:self.n_parameters+8, self.n_parameters+6:self.n_parameters+8] *= 0.1
+        # Iris ratio
+        self.filter.Q[8:10, 8:10] *= 0.1
+        self.filter.Q[self.n_parameters+8:self.n_parameters+10, self.n_parameters+8:self.n_parameters+10] *= 0.1
+        # MAR
+        self.filter.Q[10:11, 10:11] *= 0.1
+        self.filter.Q[self.n_parameters + 10:self.n_parameters + 11, self.n_parameters + 10:self.n_parameters + 11] *= 0.1
+
+        # Measurement noise
+        # Position
+        self.filter.R[:3, :3] *= 0.1
+        # Pose
+        self.filter.R[3:6, 3:6] *= 0.1
+        # EAR
+        self.filter.R[6:8, 6:8] *= 0.1
+        # Iris ratio
+        self.filter.R[8:10, 8:10] *= 0.1
+        # MAR
+        self.filter.R[10:11, 10:11] *= 0.1
+
+    def update(self, face_landmarks):
+        self.filter.predict()
+
+        face_data = extract_pose_data(face_landmarks)
+
+        self.filter.update([
+            face_data['position']['x'],
+            face_data['position']['y'],
+            face_data['position']['z'],
+            face_data['pose']['roll'],
+            face_data['pose']['pitch'],
+            face_data['pose']['yaw'],
+            face_data['eye_aspect_ratio']['left'],
+            face_data['eye_aspect_ratio']['right'],
+            face_data['iris_ratio']['x'],
+            face_data['iris_ratio']['y'],
+            face_data['mouth_aspect_ratio']
+        ])
+
+        face_data['position']['x'], face_data['position']['y'], face_data['position']['z'], \
+            face_data['pose']['roll'], face_data['pose']['pitch'], face_data['pose']['yaw'], \
+            face_data['eye_aspect_ratio']['left'], face_data['eye_aspect_ratio']['right'], \
+            face_data['iris_ratio']['x'], face_data['iris_ratio']['y'], \
+            face_data['mouth_aspect_ratio'] \
+            = self.filter.x[:self.n_parameters]
+
+        return face_data
 
 
 def extract_pose_data(face_landmarks):
@@ -80,9 +150,9 @@ def determine_face_pose(top, bottom, left, right):
     """
     Returns the pose of the face based on landmarks on the silhouette of the face
     """
-    roll = round(np.rad2deg(np.arctan2(left.y - right.y, right.x - left.x)), 4)
-    pitch = round(np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y)), 4)
-    yaw = round(np.rad2deg(np.arctan2(left.z - right.z, right.x - left.x)), 4)
+    roll = np.rad2deg(np.arctan2(left.y - right.y, right.x - left.x))
+    pitch = np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y))
+    yaw = np.rad2deg(np.arctan2(left.z - right.z, right.x - left.x))
     return roll, pitch, yaw
 
 
@@ -112,7 +182,7 @@ def eye_aspect_ratio(outer, inner, top, bottom):
     The EAR is a ratio of the height to the length of the eye and is a measure of how open the eye is
     """
     SCALING_FACTOR = 1.5
-    return np.round(np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR, 4)
+    return np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR
 
 
 def iris_ratio(outer, inner, top, bottom, iris):
@@ -142,6 +212,5 @@ def mouth_aspect_ratio(mouth_landmarks):
     The MAR is a measure of how open the mouth is
     """
     p1, p2, p3, p4, p5, p6, p7, p8 = map(lambda p: np.array([p.x, p.y, p.z]), mouth_landmarks)
-    return np.round(
-        (np.linalg.norm(p2 - p8) + np.linalg.norm(p3 - p7) + np.linalg.norm(p4 - p6)) / (2 * np.linalg.norm(p1 - p5)),
-        4)
+    return (np.linalg.norm(p2 - p8) + np.linalg.norm(p3 - p7) + np.linalg.norm(p4 - p6)) / (2 * np.linalg.norm(p1 - p5))
+

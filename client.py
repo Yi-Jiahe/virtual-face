@@ -8,14 +8,11 @@ class Client:
 
     # TODO: Find a way to break out of this loop
     def connect(self):
-        while True:
-            try:
-                self.sock.connect(self.addr)
-                print(f"Connected to {self.addr[0], self.addr[1]}")
-                break
-            except ConnectionRefusedError:
-                print(f"Failed to connect to {self.addr[0], self.addr[1]}")
-                print("Retrying...")
+        try:
+            self.sock.connect(self.addr)
+            print(f"Connected to {self.addr[0], self.addr[1]}")
+        except ConnectionRefusedError:
+            print(f"Failed to connect to {self.addr[0], self.addr[1]}")
 
     def send(self, b):
         self.sock.sendall(b)
