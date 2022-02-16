@@ -83,9 +83,9 @@ def extract_pose_data(face_landmarks):
 
 
 def determine_face_pose(top, bottom, left, right):
-    roll = round(np.rad2deg(np.arctan2(right.y - left.y, right.x - left.x)), 4)
+    roll = round(np.rad2deg(np.arctan2(left.y- right.y, right.x - left.x)), 4)
     pitch = round(np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y)), 4)
-    yaw = round(np.rad2deg(np.arctan2(right.z - left.z, right.x - left.x)), 4)
+    yaw = round(np.rad2deg(np.arctan2(left.z- right.z, right.x - left.x)), 4)
     return roll, pitch, yaw
 
 
