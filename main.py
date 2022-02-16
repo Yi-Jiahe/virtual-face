@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
                 if not standalone:
                     try:
-                        mouth_distance =0
+                        mouth_distance = 0
                         send_message(client,
                                      (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"],
                                       face_data["eye_aspect_ratio"]["left"], face_data["eye_aspect_ratio"]["right"],

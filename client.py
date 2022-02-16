@@ -1,5 +1,4 @@
 import socket
-import time
 
 
 class Client:
@@ -7,6 +6,7 @@ class Client:
         self.addr = (host, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    # TODO: Find a way to break out of this loop
     def connect(self):
         while True:
             try:

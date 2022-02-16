@@ -1,6 +1,11 @@
 import numpy as np
 
 
+class ParameterEstimator:
+    def __init__(self):
+        pass
+
+
 def extract_pose_data(face_landmarks):
     face_data = {
         "pose": {
@@ -24,66 +29,40 @@ def extract_pose_data(face_landmarks):
         "mouth_aspect_ratio": 0
     }
 
-    top, bottom, left, right = None, None, None, None
-    left_eye_landmarks = [None for _ in range(5)]
-    right_eye_landmarks = [None for _ in range(5)]
-    left_iris = None
-    right_iris = None
-    mouth_landmarks = [None for _ in range(8)]
-    for i, landmark in enumerate(face_landmarks.landmark):
-        # Silhouette landmarks
-        if i == 10:
-            top = landmark
-        if i == 152:
-            bottom = landmark
-        if i == 234:
-            left = landmark
-        if i == 454:
-            right = landmark
-        # Left eye
-        if i == 33:
-            left_eye_landmarks[0] = landmark
-        if i == 159:
-            left_eye_landmarks[1] = landmark
-        if i == 158:
-            left_eye_landmarks[2] = landmark
-        if i == 133:
-            left_eye_landmarks[3] = landmark
-        if i == 145:
-            left_eye_landmarks[4] = landmark
-        # Right eye
-        if i == 263:
-            right_eye_landmarks[0] = landmark
-        if i == 386:
-            right_eye_landmarks[1] = landmark
-        if i == 385:
-            right_eye_landmarks[2] = landmark
-        if i == 362:
-            right_eye_landmarks[3] = landmark
-        if i == 374:
-            right_eye_landmarks[4] = landmark
-        # Left Iris
-        if i == 468:
-            left_iris = landmark
-        if i == 473:
-            right_iris = landmark
-        # Mouth
-        if i == 78:
-            mouth_landmarks[0] = landmark
-        if i == 80:
-            mouth_landmarks[1] = landmark
-        if i == 13:
-            mouth_landmarks[2] = landmark
-        if i == 311:
-            mouth_landmarks[3] = landmark
-        if i == 308:
-            mouth_landmarks[4] = landmark
-        if i == 402:
-            mouth_landmarks[5] = landmark
-        if i == 14:
-            mouth_landmarks[6] = landmark
-        if i == 88:
-            mouth_landmarks[7] = landmark
+    landmarks = face_landmarks.landmark
+
+    top, bottom, left, right = \
+        landmarks[10], \
+        landmarks[152], \
+        landmarks[234], \
+        landmarks[454]
+    left_eye_landmarks = [
+        landmarks[33],
+        landmarks[159],
+        landmarks[158],
+        landmarks[133],
+        landmarks[145]
+    ]
+    right_eye_landmarks = [
+        landmarks[263],
+        landmarks[386],
+        landmarks[385],
+        landmarks[362],
+        landmarks[374]
+    ]
+    left_iris = landmarks[468]
+    right_iris = landmarks[473]
+    mouth_landmarks = [
+        landmarks[78],
+        landmarks[80],
+        landmarks[13],
+        landmarks[311],
+        landmarks[308],
+        landmarks[402],
+        landmarks[14],
+        landmarks[88]
+    ]
+
     face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"] \
         = determine_face_pose(top, bottom, left, right)
     face_data["position"]["x"] = round(np.mean((left.x, right.x)), 4)
@@ -98,6 +77,9 @@ def extract_pose_data(face_landmarks):
 
 
 def determine_face_pose(top, bottom, left, right):
+    """
+    Returns the pose of the face based on landmarks on the silhouette of the face
+    """
     roll = round(np.rad2deg(np.arctan2(left.y - right.y, right.x - left.x)), 4)
     pitch = round(np.rad2deg(np.arctan2(top.z - bottom.z, bottom.y - top.y)), 4)
     yaw = round(np.rad2deg(np.arctan2(left.z - right.z, right.x - left.x)), 4)
@@ -105,6 +87,9 @@ def determine_face_pose(top, bottom, left, right):
 
 
 def eye_parameters(left_eye_landmarks, right_eye_landmarks, left_iris, right_iris):
+    """
+    Takes in landmarks around the eye and the iris, returning the eye aspect ratio for each eye and iris ratio
+    """
     eye_aspect_ratios = [None, None]
     iris_ratios = [[None, None], [None, None]]
     for i, (eye_landmarks, iris) in enumerate(zip((left_eye_landmarks, right_eye_landmarks), (left_iris, right_iris))):
@@ -121,22 +106,41 @@ def eye_parameters(left_eye_landmarks, right_eye_landmarks, left_iris, right_iri
 
 
 def eye_aspect_ratio(outer, inner, top, bottom):
-    # Ratio of the height to the length of the eye
-    # Measure of how open the eye is
+    """
+    Takes in points around the eye and returns the eye aspect ratio (EAR)
+    
+    The EAR is a ratio of the height to the length of the eye and is a measure of how open the eye is
+    """
     SCALING_FACTOR = 1.5
     return np.round(np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR, 4)
 
 
 def iris_ratio(outer, inner, top, bottom, iris):
-    # Relative position of the iris in the eye
-    # x: 0 => outer, 1 => inner
-    # y: 0 => bottom, 1 => top
-    ratio_x = np.dot(iris-outer, inner-outer) / np.linalg.norm(inner-outer)**2
-    ratio_y = np.dot(iris-bottom, top-bottom) / np.linalg.norm(top-bottom)**2
+    """
+    Takes in points around the eye and the iris and returns the iris ratio
+
+    The iris ratio is the relative position of the iris in the eye
+    x: 0 => outer, 1 => inner
+    y: 0 => bottom, 1 => top
+    """
+    ratio_x = proj(iris-outer, inner-outer) / np.linalg.norm(inner-outer)
+    ratio_y = proj(iris-bottom, top-bottom) / np.linalg.norm(top-bottom)
     return ratio_x, ratio_y
 
 
+def proj(v1, v2):
+    """
+    Takes in two vectors and returns the magnitude of the projection of v1 on v2
+    """
+    return np.dot(v1, v2) / np.linalg.norm(v2)
+
+
 def mouth_aspect_ratio(mouth_landmarks):
+    """
+    Takes in an array of landmarks around the mouth and returns the mouth aspect ratio (MAR)
+
+    The MAR is a measure of how open the mouth is
+    """
     p1, p2, p3, p4, p5, p6, p7, p8 = map(lambda p: np.array([p.x, p.y, p.z]), mouth_landmarks)
     return np.round(
         (np.linalg.norm(p2 - p8) + np.linalg.norm(p3 - p7) + np.linalg.norm(p4 - p6)) / (2 * np.linalg.norm(p1 - p5)),
