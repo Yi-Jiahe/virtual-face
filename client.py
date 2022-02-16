@@ -1,15 +1,25 @@
 import socket
 import time
 
-sock = socket.socket()         # Create a socket object
-host = "127.0.0.1"
-port = 12345
-sock.connect((host, port))
-sock.sendall(b'Hello, world')
-data = sock.recv(1024)
-print('Received', repr(data))
-time.sleep(5)
-sock.sendall(b'Hello, world')
-data = sock.recv(1024)
-print('Received', repr(data))
-sock.close()
+
+class Client:
+    def __init__(self, host, port):
+        self.addr = (host, port)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def connect(self):
+        while True:
+            try:
+                self.sock.connect(self.addr)
+                print(f"Connected to {self.addr[0], self.addr[1]}")
+                break
+            except ConnectionRefusedError:
+                print(f"Failed to connect to {self.addr[0], self.addr[1]}")
+                print("Retrying...")
+
+    def send(self, b):
+        self.sock.send(b)
+
+    def close_socket(self):
+        self.sock.close()
+

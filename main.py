@@ -7,6 +7,7 @@ import json
 from cv2 import cv2
 import mediapipe as mp
 
+from client import Client
 from vface.drawing_utils import draw_face, MediaPipeDrawer
 from vface.face import extract_pose_data
 
@@ -34,17 +35,6 @@ def set_killed(signum, frame):
     killed = True
 
 
-def connect_socket(sock, addr):
-    connected = False
-    while not connected:
-        try:
-            sock.connect(addr)
-            print(f"Connected to {addr[0], addr[1]}")
-        except ConnectionRefusedError:
-            print(f"Failed to connect to {addr[0], addr[1]}")
-            print("Retrying...")
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run detection and server.')
     parser.add_argument('--host', dest='host',
@@ -66,9 +56,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, set_killed)
 
     if not standalone:
-        address = (args.host, args.port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connect_socket(sock, address)
+        client = Client(args.host, args.port)
+        client.connect()
 
     if debug:
         drawer = MediaPipeDrawer()
@@ -97,13 +86,13 @@ if __name__ == '__main__':
                 try:
                     msg = '%.4f %.4f %.4f %.4f %.4f %.4f' % \
                           (face_data["pose"]["roll"], face_data["pose"]["pitch"], face_data["pose"]["yaw"], 0, 0, 0)
-                    sock.send(bytes(msg, "utf-8"))
+                    client.send(bytes(msg, "utf-8"))
                 except OSError:
                     # Socket is not connected
                     # Attempt to reconnect
                     print("Failed to send data")
                     print("Attempting to reconnect")
-                    connect_socket(sock, address)
+                    client.connect()
 
             if debug:
                 # Prepare image for drawing on and displaying
@@ -126,7 +115,7 @@ if __name__ == '__main__':
                     break
 
     if not standalone:
-        sock.close()
+        client.close_socket()
 
     cap.release()
     if debug:
