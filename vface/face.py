@@ -29,7 +29,7 @@ class ParameterEstimator:
         self.filter.Q[8:10, 8:10] *= 0.1
         self.filter.Q[self.n_parameters+8:self.n_parameters+10, self.n_parameters+8:self.n_parameters+10] *= 0.1
         # MAR
-        self.filter.Q[10:11, 10:11] *= 0.1
+        self.filter.Q[10:11, 10:11] *= 1
         self.filter.Q[self.n_parameters + 10:self.n_parameters + 11, self.n_parameters + 10:self.n_parameters + 11] *= 0.1
 
         # Measurement noise
@@ -38,11 +38,11 @@ class ParameterEstimator:
         # Pose
         self.filter.R[3:6, 3:6] *= 0.1
         # EAR
-        self.filter.R[6:8, 6:8] *= 0.1
+        self.filter.R[6:8, 6:8] *= 7
         # Iris ratio
         self.filter.R[8:10, 8:10] *= 0.1
         # MAR
-        self.filter.R[10:11, 10:11] *= 0.1
+        self.filter.R[10:11, 10:11] *= 0.01
 
     def update(self, face_landmarks):
         self.filter.predict()
@@ -178,7 +178,7 @@ def eye_aspect_ratio(outer, inner, top, bottom):
     
     The EAR is a ratio of the height to the length of the eye and is a measure of how open the eye is
     """
-    SCALING_FACTOR = 1.5
+    SCALING_FACTOR = 1
     return np.clip(np.linalg.norm(top - bottom) / np.linalg.norm(outer - inner) * SCALING_FACTOR, 0, 1)
 
 
